@@ -209,25 +209,25 @@ void Command::ParseCommandString(string input) {
 }
 
 void InputReader::Load(TransportCatalogue& tc) {
-    // сортируем запросы (переставляем элементы в очереди запросов)
-    // сначала команды (direction_command или description)
+    // СЃРѕСЂС‚РёСЂСѓРµРј Р·Р°РїСЂРѕСЃС‹ (РїРµСЂРµСЃС‚Р°РІР»СЏРµРј СЌР»РµРјРµРЅС‚С‹ РІ РѕС‡РµСЂРµРґРё Р·Р°РїСЂРѕСЃРѕРІ)
+    // СЃРЅР°С‡Р°Р»Р° РєРѕРјР°РЅРґС‹ (direction_command РёР»Рё description)
     auto it_desc = partition(commands_.begin(), commands_.end(), [](Command com) {
         return !com.direction_command.empty();
     });
-    // сначала остановки (stop или bus)
+    // СЃРЅР°С‡Р°Р»Р° РѕСЃС‚Р°РЅРѕРІРєРё (stop РёР»Рё bus)
     auto it_stops = partition(commands_.begin(), it_desc, [](Command com) {
         return com.type == QueryType::StopX;
     });
     
     //Stop X:
-    // Cпецификация остановки будет описывать расстояния до остановок,
-    // которые будут определены позже. Для решения проблемы можете обрабатывать
-    // ввод в два прохода
-    // — на первом добавить остановку с координатами,
+    // CРїРµС†РёС„РёРєР°С†РёСЏ РѕСЃС‚Р°РЅРѕРІРєРё Р±СѓРґРµС‚ РѕРїРёСЃС‹РІР°С‚СЊ СЂР°СЃСЃС‚РѕСЏРЅРёСЏ РґРѕ РѕСЃС‚Р°РЅРѕРІРѕРє,
+    // РєРѕС‚РѕСЂС‹Рµ Р±СѓРґСѓС‚ РѕРїСЂРµРґРµР»РµРЅС‹ РїРѕР·Р¶Рµ. Р”Р»СЏ СЂРµС€РµРЅРёСЏ РїСЂРѕР±Р»РµРјС‹ РјРѕР¶РµС‚Рµ РѕР±СЂР°Р±Р°С‚С‹РІР°С‚СЊ
+    // РІРІРѕРґ РІ РґРІР° РїСЂРѕС…РѕРґР°
+    // вЂ” РЅР° РїРµСЂРІРѕРј РґРѕР±Р°РІРёС‚СЊ РѕСЃС‚Р°РЅРѕРІРєСѓ СЃ РєРѕРѕСЂРґРёРЅР°С‚Р°РјРё,
     for (auto cur_it = commands_.begin(); cur_it != it_stops; ++cur_it) {
         InputReader::LoadCommand(tc, *cur_it);
     }
-    // на последующем — расстояния до соседних остановок.
+    // РЅР° РїРѕСЃР»РµРґСѓСЋС‰РµРј вЂ” СЂР°СЃСЃС‚РѕСЏРЅРёСЏ РґРѕ СЃРѕСЃРµРґРЅРёС… РѕСЃС‚Р°РЅРѕРІРѕРє.
     for (auto cur_it = commands_.begin(); cur_it != it_stops; ++cur_it) {
         InputReader::LoadCommand(tc, *cur_it);
     }
@@ -242,7 +242,7 @@ void InputReader::Load(TransportCatalogue& tc) {
 }
 
 void InputReader::LoadCommand(TransportCatalogue& tc, Command com) {
-    // выполнение команды
+    // РІС‹РїРѕР»РЅРµРЅРёРµ РєРѕРјР°РЅРґС‹
     switch (com.type) {
         case QueryType::StopX:
             if (com.coordinates != pair<string_view, string_view>()) {
