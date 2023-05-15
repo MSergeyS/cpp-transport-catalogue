@@ -8,8 +8,8 @@ using namespace query;
 int main() {
     TransportCatalogue tc;
     InputReader ir;
-    ir.ParseInput();
-    ir.ParseInput();
+    ir.ParseInput(std::cin);
+    ir.ParseInput(std::cin);
     ir.Load(tc);
     //tests();
     return 0;
