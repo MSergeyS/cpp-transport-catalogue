@@ -12,10 +12,10 @@ namespace transport_catalogue {
 
 namespace query {
 
-void InputReader::ParseInput(std::istream& input) {
+void InputReader::ParseInput() {
     int query_count;
-    input >> query_count;
-    input.ignore();
+    cin >> query_count;
+    cin.ignore();
     string command;
 
     for (int i = 0; i < query_count; ++i) {
@@ -127,74 +127,6 @@ vector<string_view> Command::ParseBuses(vector<string_view> vec_input) {
     return result;
 }
 
-// разбирает запросы StopX
-void Command::ParseCommandStopX(size_t pos_end_of_command) {
-    if (auto pos = origin_command.find(':'); pos != string::npos) {
-        //Stop stop1:
-        direction_command = origin_command.substr(pos + 2, origin_command.length() - pos - 1);
-        auto temp = Split(direction_command, ',');
-
-        for (size_t i = pos_end_of_command; i < pos; ++i) {
-            name += origin_command[i];
-        }
-
-        while (name.front() == ' ') {
-            name.erase(name.begin());
-        }
-
-        coordinates = ParseCoordinates(temp[0], temp[1]);
-
-        if (temp.size() > 2) {
-            distances = ParseDistances(temp);
-        }
-    }
-    else {
-        //Stop stop1
-        for (size_t i = pos_end_of_command; i < origin_command.size(); ++i) {
-            name += origin_command[i];
-        }
-
-        while (name.front() == ' ') {
-            name.erase(name.begin());
-        }
-
-        while (name.back() == ' ') {
-            name.erase(name.end() - 1);
-        }
-    }
-}
-
-// разбирает запросы BusX
-void Command::ParseCommandBusX(size_t pos_end_of_command,
-        std::vector<std::string_view> vec_input) {
-    if (auto pos = origin_command.find(':'); pos != string::npos) {
-        direction_command = origin_command.substr(pos + 2,
-                origin_command.length() - pos - 1);
-        //Bus bus1:
-        for (size_t i = pos_end_of_command; i < pos; ++i) {
-            name += origin_command[i];
-        }
-
-        while (name.front() == ' ') {
-            name.erase(name.begin());
-        }
-        route_stops = ParseBuses(vec_input);
-    } else {
-        //Bus bus1
-        for (size_t i = pos_end_of_command; i < origin_command.size(); ++i) {
-            name += origin_command[i];
-        }
-
-        while (name.front() == ' ') {
-            name.erase(name.begin());
-        }
-
-        while (name.back() == ' ') {
-            name.erase(name.end() - 1);
-        }
-    }
-}
-
 void Command::ParseCommandString(string input) {
     static std::unordered_map<std::string, QueryType> const table = {
         {"Stop", QueryType::StopX}, {"Bus", QueryType::BusX}
@@ -208,11 +140,70 @@ void Command::ParseCommandString(string input) {
     switch (table.at(temp_type)) {
         case QueryType::StopX:
             type = QueryType::StopX;
-            ParseCommandStopX(pos_end_of_command);
+            if (auto pos = origin_command.find(':'); pos != string::npos) {
+                //Stop stop1:
+                direction_command = origin_command.substr(pos + 2, origin_command.length() - pos - 1);
+                auto temp = Split(direction_command, ',');
+
+                for (size_t i = pos_end_of_command; i < pos; ++i) {
+                    name += origin_command[i];
+                }
+
+                while (name.front() == ' ') {
+                    name.erase(name.begin());
+                }
+
+                coordinates = ParseCoordinates(temp[0], temp[1]);
+
+                if (temp.size() > 2) {
+                    distances = ParseDistances(temp);
+                }
+            }
+            else {
+                //Stop stop1
+                for (size_t i = pos_end_of_command; i < origin_command.size(); ++i) {
+                    name += origin_command[i];
+                }
+
+                while (name.front() == ' ') {
+                    name.erase(name.begin());
+                }
+
+                while (name.back() == ' ') {
+                    name.erase(name.end() - 1);
+                }
+                break;
+            }
             break;
         case QueryType::BusX:
             type = QueryType::BusX;
-            ParseCommandBusX(pos_end_of_command,  vec_input);
+            if (auto pos = origin_command.find(':'); pos != string::npos) {
+                direction_command = origin_command.substr(pos + 2, origin_command.length() - pos - 1);
+                //Bus bus1:
+                for (size_t i = pos_end_of_command; i < pos; ++i) {
+                    name += origin_command[i];
+                }
+
+                while (name.front() == ' ') {
+                    name.erase(name.begin());
+                }
+                route_stops = ParseBuses(vec_input);
+            }
+            else {
+                //Bus bus1
+                for (size_t i = pos_end_of_command; i < origin_command.size(); ++i) {
+                    name += origin_command[i];
+                }
+
+                while (name.front() == ' ') {
+                    name.erase(name.begin());
+                }
+
+                while (name.back() == ' ') {
+                    name.erase(name.end() - 1);
+                }
+                break;
+            }
             break;
     }
 }
@@ -268,7 +259,7 @@ void InputReader::LoadCommand(TransportCatalogue& tc, Command com) {
                 }
             }
             else {
-                stat_reader::OutputStopAbout(tc, com.name, cout);
+                output::OutputStopAbout(tc, com.name);
             }
 
             break;
@@ -277,7 +268,7 @@ void InputReader::LoadCommand(TransportCatalogue& tc, Command com) {
                 tc.AddRoute(com.name, com.route_type, com.route_stops);
              }
             else {
-                stat_reader::OutputRouteAbout(tc, com.name, cout);
+                output::OutputRouteAbout(tc, com.name);
             }
             break;
     }

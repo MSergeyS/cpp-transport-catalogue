@@ -39,11 +39,6 @@ struct Command {
 
     // разбирает команды
     void ParseCommandString(std::string input);
-    // разбирает запросы StopX
-    void ParseCommandStopX(size_t pos_end_of_command);
-    // разбирает запросы BusX
-    void ParseCommandBusX(size_t pos_end_of_command,
-            std::vector<std::string_view> vec_input);
 };
 
 // разделяет строки на слова
@@ -56,7 +51,7 @@ public:
     // выполнение команды
     void LoadCommand(TransportCatalogue& tc, Command com);
     // разбирает ввод
-    void ParseInput(std::istream& input);
+    void ParseInput();
 
 private:
     std::vector<Command> commands_;

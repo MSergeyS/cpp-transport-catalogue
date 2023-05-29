@@ -96,23 +96,28 @@ int CalculateUniqueStops(const Route *route) noexcept {
 
 double CalculateRouteLength(const Route *route) noexcept {
     double result = 0.0;
-    if (route != nullptr) {
-        for (auto iter1 = route->stops.begin(), iter2 = iter1+1;
-             iter2 < route->stops.end();
-             ++iter1, ++iter2) {
-            result += ComputeDistance((*iter1)->coordinate, (*iter2)->coordinate);
-        }
-        if (route->route_type == RouteType::LINEAR) {
-            result *= 2;
-        }
+    if (route == nullptr) {
+        return result;
+    }
+    for (auto iter1 = route->stops.begin(), iter2 = iter1 + 1;
+            iter2 < route->stops.end(); ++iter1, ++iter2) {
+        result += geo::ComputeDistance((*iter1)->coordinate,
+                (*iter2)->coordinate);
+    }
+    if (route->route_type == RouteType::LINEAR) {
+        result *= 2;
     }
     return result;
 }
 
-RouteInfo TransportCatalogue::GetRouteInfo(
-        std::string_view route_name) const {
+const RouteInfo* TransportCatalogue::GetRouteInfo(
+        const std::string_view& route_name) const {
     RouteInfo result;
     auto route = GetRouteByName(route_name);
+    if (route == nullptr)
+    {
+        return nullptr;
+    }
     result.name = route->name;
     result.route_type = route->route_type;
     result.number_of_stops = CalculateStops(route);
@@ -120,16 +125,16 @@ RouteInfo TransportCatalogue::GetRouteInfo(
     result.route_length = this->CalculateRealRouteLength(route);
     // извилистость, то есть отношение фактической длины маршрута к географическому расстоянию
     result.curvature = result.route_length / CalculateRouteLength(route);
-    return result;
+    return new RouteInfo(result);
 }
 
-const std::set<std::string_view>
+const std::set<std::string_view>*
 TransportCatalogue::GetRoutesOnStop(const Stop* stop) const {
     auto found = routes_on_stops_.find(stop);
     if (found == routes_on_stops_.end()) {
         return {};
     } else {
-        return found->second;
+        return &found->second;
     }
 }
 

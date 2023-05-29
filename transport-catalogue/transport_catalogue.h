@@ -8,17 +8,11 @@
 #include <vector>
 
 #include "geo.h"
+#include "domain.h"
 
 namespace transport_catalogue {
 
 // типы данных -------------------------------------------------------------
-// тип маршрута
-enum class RouteType {
-    UNKNOWN,
-    LINEAR,  // линейный
-    CIRCLE,  // кольцевой
-};
-
 template<typename Type>
 class StopHasher {
 public:
@@ -28,31 +22,6 @@ public:
 
 private:
     std::hash<const Type*> hasher_;
-};
-
-// остановка состоит из имени и координат. Считаем, что имена уникальны.
-struct Stop {
-    std::string name;  // название остановки
-    geo::Coordinates coordinate; // координаты
-    friend bool operator==(const Stop &lhs, const Stop &rhs);
-};
-
-// Маршрут состоит из имени (номера автобуса), типа и списка остановок. Считаем, что имена уникальны.
-struct Route {
-    std::string name;  // название маршрута
-    RouteType route_type = RouteType::UNKNOWN;
-    std::vector<const Stop*> stops; // указатели на остановки
-    friend bool operator==(const Route &lhs, const Route &rhs);
-};
-
-// информация о маршруте
-struct RouteInfo {
-    std::string_view name;  // название маршрута
-    RouteType route_type = RouteType::UNKNOWN; // тип маршрута
-    int number_of_stops = 0; // количество остановок (все)
-    int number_of_unique_stops = 0; //количество остановок (уникальные)
-    uint64_t route_length = 0; // длина маршрута
-    double curvature = 0.0; // извилистость
 };
 
 // TransportCatalogue - класс транспортного справочника
@@ -80,10 +49,10 @@ public:
     const std::unordered_map<std::string_view, const Route*>& GetAllRoutes() const;
 
     // получение информации о маршруте
-    RouteInfo GetRouteInfo(std::string_view route_name) const;
+    const RouteInfo*  GetRouteInfo(const std::string_view& route_name) const;
 
     // возвращает список автобусов, проходящих через остановку
-    const std::set<std::string_view> GetRoutesOnStop(const Stop* stop) const;
+    const std::set<std::string_view>* GetRoutesOnStop(const Stop* stop) const;
 
     // задаёт дистанцию между остановками p_stop1 и p_stop2
     void SetStopDistance(const Stop* p_stop1, const Stop* p_stop2, uint64_t distance);
