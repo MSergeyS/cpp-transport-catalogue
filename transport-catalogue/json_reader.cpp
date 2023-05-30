@@ -8,6 +8,12 @@
 namespace json_reader
 {
     using namespace std::literals;
+
+    JsonReader::JsonReader(request_handler::RequestHandler& handler,
+            std::istream& input, std::ostream& output)
+            : handler_(handler), input_(input), output_(output) {
+            }
+
     //------------------input-------------------------
 
     /* Данные поступают из stdin в формате JSON-объекта. Его верхнеуровневая структура:
@@ -36,23 +42,21 @@ namespace json_reader
     Иными словами, разделительные пробелы, табуляции и символы перевода строки внутри JSON
     могут располагаться произвольным образом или вообще отсутствовать.
     */
-    void ReadRequests(std::istream& input, transport_catalogue::TransportCatalogue& catalogue) {
+    void JsonReader::ReadRequests() {
     try {
-        const json::Dict dict = json::Load(input).GetRoot().AsMap();
+        const json::Dict dict = json::Load(input_).GetRoot().AsMap();
         const auto base_requests = dict.find("base_requests");
         if (base_requests != dict.end()) {
-            MakeBase(catalogue, base_requests->second.AsArray());
+            MakeBase(base_requests->second.AsArray());
         }
         const auto render_settings = dict.find("render_settings");
-        renderer::MapRenderer map_renderer;
         if (render_settings != dict.end())
         {
-            SetMapRenderer(map_renderer, render_settings->second.AsMap());
+            SetMapRenderer(render_settings->second.AsMap());
         }
         const auto stat_requests = dict.find("stat_requests");
         if (stat_requests != dict.end()) {
-            StatRequests(request_handler::RequestHandler(catalogue, map_renderer),
-                         stat_requests->second.AsArray());
+            StatRequests(stat_requests->second.AsArray());
         }
     }
     catch (const std::logic_error& err) {
@@ -62,18 +66,18 @@ namespace json_reader
         std::cerr << "ParsingError: " << err.what() << std::endl;
     }
     catch (...) {
-        std::cerr << "Unknow error" << std::endl;
+        std::cerr << "Unknown error" << std::endl;
     }
     }
 
     //------------------input-------------------------
 
-    void MakeBase(transport_catalogue::TransportCatalogue& catalogue, const json::Array& arr) {
+    void JsonReader::MakeBase(const json::Array& arr) {
         for (const auto& request : arr) {
             const auto request_type = request.AsMap().find("type");
             if (request_type != request.AsMap().end()) {
                 if (request_type->second.AsString() == "Stop") {
-                    ReadStopData(catalogue, request.AsMap());
+                    ReadStopData(request.AsMap());
                 }
             }
         }
@@ -82,7 +86,7 @@ namespace json_reader
             const auto request_type = request.AsMap().find("type");
             if (request_type != request.AsMap().end()) {
                 if (request_type->second.AsString() == "Stop") {
-                    ReadStopDistance(catalogue, request.AsMap());
+                    ReadStopDistance(request.AsMap());
                 }
             }
         }
@@ -91,7 +95,7 @@ namespace json_reader
             const auto request_type = request.AsMap().find("type");
             if (request_type != request.AsMap().end()) {
                 if (request_type->second.AsString() == "Bus") {
-                    ReadBusData(catalogue, request.AsMap());
+                    ReadBusData(request.AsMap());
                 }
             }
         }
@@ -118,20 +122,19 @@ namespace json_reader
        - road_distances — словарь, задающий дорожное расстояние от этой остановки до соседних. Каждый ключ
          в этом словаре — название соседней остановки, значение — целочисленное расстояние в метрах.
     */
-    void ReadStopData(transport_catalogue::TransportCatalogue& catalogue, const json::Dict& dict) {
+    void JsonReader::ReadStopData(const json::Dict& dict) {
         const std::string name = dict.at("name").AsString();
         const auto latitude = dict.at("latitude").AsDouble();
         const auto longitude = dict.at("longitude").AsDouble();
-        catalogue.AddStop(name, { latitude, longitude });
+        handler_.AddStop(name, { latitude, longitude });
     }
 
-    void ReadStopDistance(transport_catalogue::TransportCatalogue& catalogue, const json::Dict& dict) {
-        const std::string from_stop_name = dict.at("name").AsString();
+    void JsonReader::ReadStopDistance(const json::Dict& dict) {
+        const std::string& from_stop_name = dict.at("name").AsString();
         const json::Dict stops = dict.at("road_distances").AsMap();
         for (const auto& [to_stop_name, distance] : stops) {
-            catalogue.SetStopDistance(catalogue.GetStopByName(from_stop_name),
-                                      catalogue.GetStopByName(to_stop_name),
-                                      distance.AsInt());
+            handler_.SetStopDistance(from_stop_name, to_stop_name,
+                    static_cast<unsigned long int>(distance.AsInt()));
         }
     }
 
@@ -155,8 +158,8 @@ namespace json_reader
          Например: ["stop1", "stop2", "stop3", "stop1"];
        - is_roundtrip — значение типа bool. true, если маршрут кольцевой.
     */
-    void ReadBusData(transport_catalogue::TransportCatalogue& catalogue, const json::Dict& dict) {
-        const std::string bus_name = dict.at("name").AsString();
+    void JsonReader::ReadBusData(const json::Dict& dict) {
+        const std::string_view bus_name = dict.at("name").AsString();
         std::vector<std::string_view> stops;
         for (const auto& stop : dict.at("stops").AsArray()) {
             stops.emplace_back(stop.AsString());
@@ -164,13 +167,13 @@ namespace json_reader
         dict.at("stops").AsArray();
         const auto is_roundtrip = dict.at("is_roundtrip").AsBool();
         RouteType type = is_roundtrip ? RouteType::CIRCLE : RouteType::LINEAR;
-        catalogue.AddRoute(bus_name, type, stops);
+        handler_.AddRoute(bus_name, type, stops);
     }
 
     //------------------output-------------------------
 
     /* Формат запросов к транспортному справочнику и ответов на них
-       Запросы хранятся в массиве stat_requests. 
+       Запросы хранятся в массиве stat_requests.
        В ответ на них программа должна вывести в stdout JSON-массив ответов:
        [
          { ответ на первый запрос },
@@ -188,36 +191,36 @@ namespace json_reader
        Порядок следования ответов на запросы в выходном массиве должен совпадать
        с порядком запросов в массиве stat_requests.
     */
-    void StatRequests(const request_handler::RequestHandler& handler, const json::Node& node) {
+    void JsonReader::StatRequests(const json::Node& node) {
         json::Array arr_answer;
         for (const auto& request : node.AsArray()) {
             if (request.AsMap().empty()) {
                 continue;
             }
             if (request.AsMap().at("type").AsString() == "Stop") {
-                json::Node dict_node_stop = RequestStop(handler, request);
+                json::Node dict_node_stop = RequestStop(request);
                 arr_answer.push_back(std::move(dict_node_stop));
                 continue;
             }
             else if (request.AsMap().at("type").AsString() == "Bus") {
-                json::Node dict_node_bus = RequestBus(handler, request);
+                json::Node dict_node_bus = RequestBus(request);
                 arr_answer.push_back(std::move(dict_node_bus));
                 continue;
             }
 
-            /* запрос на получение изображения, который имеет следующий вид: 
+            /* запрос на получение изображения, который имеет следующий вид:
                {
                   "type": "Map",
                   "id": 11111
                } 
             */
-            if (request.AsMap().at("type").AsString() == "Map") {
-                json::Node dict_node_map = RequestMap(handler, request);
+            else if (request.AsMap().at("type").AsString() == "Map") {
+                json::Node dict_node_map = RequestMap(request);
                 arr_answer.push_back(std::move(dict_node_map));
                 continue;
             }
         }
-        json::Print(json::Document{ arr_answer }, std::cout);
+        json::Print(json::Document{ arr_answer }, output_);
     }
 
     /*
@@ -249,12 +252,12 @@ namespace json_reader
         "error_message": "not found"
       } 
     */ 
-    json::Node RequestStop(const  request_handler::RequestHandler& handler, const json::Node& value) {
+    json::Node JsonReader::RequestStop(const json::Node& value) {
         std::string_view name = value.AsMap().at("name"s).AsString();
-        if (!handler.StopIs(name)) {
+        if (!handler_.StopIs(name)) {
             return CreateEmptyAnswer(value);
         }
-        auto buses = handler.GetRoutesOnStop(name);
+        auto buses = handler_.GetRoutesOnStop(name);
         json::Array arr;
         if (buses != nullptr) {
             for (std::string_view bus : *buses) {
@@ -307,8 +310,8 @@ namespace json_reader
         "error_message": "not found"
       } 
     */
-    json::Node RequestBus(const request_handler::RequestHandler& handler, const json::Node& value) {
-        auto route_info = handler.GetRouteInfo(value.AsMap().at("name"s).AsString());
+    json::Node JsonReader::RequestBus(const json::Node& value) {
+        auto route_info = handler_.GetRouteInfo(value.AsMap().at("name"s).AsString());
         if (route_info == nullptr) {
             return CreateEmptyAnswer(value);
         }
@@ -327,14 +330,14 @@ namespace json_reader
         "request_id": 11111
       } 
 
-      Ключ map — строка с изображением карты в формате SVG. Следующие спецсимволы при выводе строк 
+      Ключ map — строка с изображением карты в формате SVG. Следующие спецсимволы при выводе строк
       в JSON нужно экранировать:
         - двойные кавычки";
         - обратный слэш \;
         - символы возврата каретки и перевода строки.
     */
-    json::Node RequestMap(const request_handler::RequestHandler& handler, const json::Node& value) {
-        svg::Document doc = handler.RenderMap();
+    json::Node JsonReader::RequestMap(const json::Node& value) {
+        svg::Document doc = handler_.RenderMap();
         std::ostringstream ostr;
         doc.Render(ostr);
         return json::Builder{}.StartDict()
@@ -371,20 +374,20 @@ namespace json_reader
         ]
     } 
 
-      - width и height — ширина и высота изображения в пикселях. Вещественное число 
+      - width и height — ширина и высота изображения в пикселях. Вещественное число
         в диапазоне от 0 до 100000.
-      - padding — отступ краёв карты от границ SVG-документа. Вещественное число не меньше 0 
+      - padding — отступ краёв карты от границ SVG-документа. Вещественное число не меньше 0
         и меньше min(width, height)/2.
-      - line_width — толщина линий, которыми рисуются автобусные маршруты. Вещественное число 
+      - line_width — толщина линий, которыми рисуются автобусные маршруты. Вещественное число
         в диапазоне от 0 до 100000.
-      - stop_radius — радиус окружностей, которыми обозначаются остановки. Вещественное число 
+      - stop_radius — радиус окружностей, которыми обозначаются остановки. Вещественное число
         в диапазоне от 0 до 100000.
       - bus_label_font_size — размер текста, которым написаны названия автобусных маршрутов.
         Целое число в диапазоне от 0 до 100000.
       - bus_label_offset — смещение надписи с названием маршрута относительно координат
         конечной остановки на карте. Массив из двух элементов типа double. Задаёт значения
         свойств dx и dy SVG-элемента <text>. Элементы массива — числа в диапазоне от –100000 до 100000.
-      - stop_label_font_size — размер текста, которым отображаются названия остановок. 
+      - stop_label_font_size — размер текста, которым отображаются названия остановок.
         Целое число в диапазоне от 0 до 100000.
       - stop_label_offset — смещение названия остановки относительно её координат на карте.
         Массив из двух элементов типа double. Задаёт значения свойств dx и dy SVG-элемента <text>.
@@ -394,7 +397,7 @@ namespace json_reader
         Задаёт значение атрибута stroke-width элемента <text>. Вещественное число в диапазоне от 0 до 100000.
       - color_palette — цветовая палитра. Непустой массив.
     */
-    void SetMapRenderer(renderer::MapRenderer& map_renderer, const json::Dict& dict) {
+    void JsonReader::SetMapRenderer(const json::Dict& dict) {
         renderer::RenderSettings settings;
         settings.width = dict.at("width").AsDouble();
         settings.height = dict.at("height").AsDouble();
@@ -412,20 +415,20 @@ namespace json_reader
         for (const auto& color : dict.at("color_palette").AsArray()) {
             settings.color_palette.emplace_back(GetColor(color));
         }
-        map_renderer.SetRenderSettings(settings);
+        handler_.SetRenderSettings(settings);
     }
 
     /*
     Цвет можно указать в одном из следующих форматов:
 
     в виде строки, например, "red" или "black";
-    в массиве из трёх целых чисел диапазона [0, 255]. Они определяют r, g и b компоненты цвета 
+    в массиве из трёх целых чисел диапазона [0, 255]. Они определяют r, g и b компоненты цвета
     в формате svg::Rgb. Цвет [255, 16, 12] нужно вывести в SVG как rgb(255,16,12);
     в массиве из четырёх элементов: три целых числа в диапазоне от [0, 255] и одно вещественное число
     в диапазоне от [0.0, 1.0]. Они задают составляющие red, green, blue и opacity цвета формата svg::Rgba.
     Цвет, заданный как [255, 200, 23, 0.85], должен быть выведен в SVG как rgba(255,200,23,0.85).
     */
-    const svg::Color GetColor(const json::Node& color) {
+    const svg::Color JsonReader::GetColor(const json::Node& color) {
         if (color.IsString()) {
             return svg::Color{ color.AsString() };
         }
@@ -451,7 +454,7 @@ namespace json_reader
 
     //--------------------------------------------------
 
-    json::Node CreateEmptyAnswer(const json::Node& value) {
+    json::Node JsonReader::CreateEmptyAnswer(const json::Node& value) {
         return json::Builder{}.StartDict()
                 .Key("request_id"s).Value(value.AsMap().at("id"s).AsInt())
                 .Key("error_message"s).Value("not found"s)

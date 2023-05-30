@@ -9,8 +9,8 @@
 #include "request_handler.h"
 
 namespace request_handler {
-	RequestHandler::RequestHandler(const transport_catalogue::TransportCatalogue& catalogue,
-		const renderer::MapRenderer& renderer) : db_(catalogue), renderer_(renderer) {
+	RequestHandler::RequestHandler(transport_catalogue::TransportCatalogue& catalogue,
+		renderer::MapRenderer& renderer) : db_(catalogue), renderer_(renderer) {
 	}
 
 	// Возвращает информацию о маршруте (запрос Bus)
@@ -30,4 +30,23 @@ namespace request_handler {
 	svg::Document RequestHandler::RenderMap() const	{
 		return renderer_.CreateMap(db_);
 	}
+
+    void RequestHandler::AddStop(const std::string& stop_name, const geo::Coordinates coordinate) {
+        db_.AddStop(stop_name, coordinate);
+    }
+
+    // задаёт дистанцию между остановками p_stop1 и p_stop2
+    void RequestHandler::SetStopDistance(const std::string_view name_stop1, const std::string_view name_stop2, uint64_t distance) {
+        db_.SetStopDistance(db_.GetStopByName(name_stop1), db_.GetStopByName(name_stop2), distance);
+    }
+
+    // добавление маршрута в базу
+    void RequestHandler::AddRoute(std::string_view name, RouteType type, std::vector<std::string_view> stops) {
+        db_.AddRoute(name, type, stops);
+    }
+
+    void RequestHandler::SetRenderSettings(const renderer::RenderSettings& render_settings) {
+        renderer_.SetRenderSettings(render_settings);
+    }
+
 } // namespace request_handler

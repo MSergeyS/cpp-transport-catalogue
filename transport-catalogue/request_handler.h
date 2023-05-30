@@ -23,8 +23,8 @@
 namespace request_handler {
     class RequestHandler {
     public:
-        RequestHandler(const transport_catalogue::TransportCatalogue& db,
-            const renderer::MapRenderer& renderer);
+        RequestHandler(transport_catalogue::TransportCatalogue& db,
+            renderer::MapRenderer& renderer);
 
         // Возвращает информацию о маршруте (запрос Bus)
         std::optional<const RouteInfo*> GetRouteInfo(const std::string_view& bus_name) const;
@@ -37,9 +37,20 @@ namespace request_handler {
         // Рисуем карту
         svg::Document RenderMap() const;
 
+        // добавление остановки в базу
+        void AddStop(const std::string& stop_name, geo::Coordinates coordinate);
+
+        // задаёт дистанцию между остановками p_stop1 и p_stop2
+        void SetStopDistance(const std::string_view name_stop1, const std::string_view name_stop2, uint64_t distance);
+
+        // добавление маршрута в базу
+        void AddRoute(std::string_view name, RouteType type, std::vector<std::string_view> stops);
+
+        void SetRenderSettings(const renderer::RenderSettings& render_settings);
+
     private:
         // RequestHandler использует агрегацию объектов "Транспортный Справочник" и "Визуализатор Карты"
-        const transport_catalogue::TransportCatalogue& db_;
-        const renderer::MapRenderer& renderer_;
+        transport_catalogue::TransportCatalogue& db_;
+        renderer::MapRenderer& renderer_;
     };
 } // namespace request_handler

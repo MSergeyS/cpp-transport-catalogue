@@ -11,7 +11,7 @@ namespace transport_catalogue {
 
 // добавление остановки в базу
 void TransportCatalogue::AddStop(const std::string &stop_name,
-        geo::Coordinates coordinate) {
+        const geo::Coordinates coordinate) {
     Stop stop;
     stop.name = stop_name;
     stop.coordinate = coordinate;
