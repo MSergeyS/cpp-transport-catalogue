@@ -3,18 +3,19 @@
 #include <map>
 #include <iostream>
 
+#include "json_builder.h"
 #include "json_reader.h"
 
 namespace json_reader
 {
     using namespace std::literals;
 
+    // JsonReader : public  -----------------------------------------------------
+
     JsonReader::JsonReader(request_handler::RequestHandler& handler,
             std::istream& input, std::ostream& output)
             : handler_(handler), input_(input), output_(output) {
             }
-
-    //------------------input-------------------------
 
     /* Данные поступают из stdin в формате JSON-объекта. Его верхнеуровневая структура:
     {
@@ -44,7 +45,7 @@ namespace json_reader
     */
     void JsonReader::ReadRequests() {
     try {
-        const json::Dict dict = json::Load(input_).GetRoot().AsMap();
+        const json::Dict dict = json::Load(input_).GetRoot().AsDict();
         const auto base_requests = dict.find("base_requests");
         if (base_requests != dict.end()) {
             MakeBase(base_requests->second.AsArray());
@@ -52,7 +53,7 @@ namespace json_reader
         const auto render_settings = dict.find("render_settings");
         if (render_settings != dict.end())
         {
-            SetMapRenderer(render_settings->second.AsMap());
+            SetMapRenderer(render_settings->second.AsDict());
         }
         const auto stat_requests = dict.find("stat_requests");
         if (stat_requests != dict.end()) {
@@ -70,32 +71,32 @@ namespace json_reader
     }
     }
 
-    //------------------input-------------------------
+    // input --------------------------------------------------------------------------
 
     void JsonReader::MakeBase(const json::Array& arr) {
         for (const auto& request : arr) {
-            const auto request_type = request.AsMap().find("type");
-            if (request_type != request.AsMap().end()) {
+            const auto request_type = request.AsDict().find("type");
+            if (request_type != request.AsDict().end()) {
                 if (request_type->second.AsString() == "Stop") {
-                    ReadStopData(request.AsMap());
+                    ReadStopData(request.AsDict());
                 }
             }
         }
 
         for (const auto& request : arr) {
-            const auto request_type = request.AsMap().find("type");
-            if (request_type != request.AsMap().end()) {
+            const auto request_type = request.AsDict().find("type");
+            if (request_type != request.AsDict().end()) {
                 if (request_type->second.AsString() == "Stop") {
-                    ReadStopDistance(request.AsMap());
+                    ReadStopDistance(request.AsDict());
                 }
             }
         }
 
         for (const auto& request : arr) {
-            const auto request_type = request.AsMap().find("type");
-            if (request_type != request.AsMap().end()) {
+            const auto request_type = request.AsDict().find("type");
+            if (request_type != request.AsDict().end()) {
                 if (request_type->second.AsString() == "Bus") {
-                    ReadBusData(request.AsMap());
+                    ReadBusData(request.AsDict());
                 }
             }
         }
@@ -131,7 +132,7 @@ namespace json_reader
 
     void JsonReader::ReadStopDistance(const json::Dict& dict) {
         const std::string& from_stop_name = dict.at("name").AsString();
-        const json::Dict stops = dict.at("road_distances").AsMap();
+        const json::Dict stops = dict.at("road_distances").AsDict();
         for (const auto& [to_stop_name, distance] : stops) {
             handler_.SetStopDistance(from_stop_name, to_stop_name,
                     static_cast<unsigned long int>(distance.AsInt()));
@@ -170,7 +171,7 @@ namespace json_reader
         handler_.AddRoute(bus_name, type, stops);
     }
 
-    //------------------output-------------------------
+    // output -------------------------------------------------------------------------
 
     /* Формат запросов к транспортному справочнику и ответов на них
        Запросы хранятся в массиве stat_requests.
@@ -194,15 +195,15 @@ namespace json_reader
     void JsonReader::StatRequests(const json::Node& node) {
         json::Array arr_answer;
         for (const auto& request : node.AsArray()) {
-            if (request.AsMap().empty()) {
+            if (request.AsDict().empty()) {
                 continue;
             }
-            if (request.AsMap().at("type").AsString() == "Stop") {
+            if (request.AsDict().at("type").AsString() == "Stop") {
                 json::Node dict_node_stop = RequestStop(request);
                 arr_answer.push_back(std::move(dict_node_stop));
                 continue;
             }
-            else if (request.AsMap().at("type").AsString() == "Bus") {
+            else if (request.AsDict().at("type").AsString() == "Bus") {
                 json::Node dict_node_bus = RequestBus(request);
                 arr_answer.push_back(std::move(dict_node_bus));
                 continue;
@@ -214,7 +215,7 @@ namespace json_reader
                   "id": 11111
                } 
             */
-            else if (request.AsMap().at("type").AsString() == "Map") {
+            else if (request.AsDict().at("type").AsString() == "Map") {
                 json::Node dict_node_map = RequestMap(request);
                 arr_answer.push_back(std::move(dict_node_map));
                 continue;
@@ -253,7 +254,7 @@ namespace json_reader
       } 
     */ 
     json::Node JsonReader::RequestStop(const json::Node& value) {
-        std::string_view name = value.AsMap().at("name"s).AsString();
+        std::string_view name = value.AsDict().at("name"s).AsString();
         if (!handler_.StopIs(name)) {
             return CreateEmptyAnswer(value);
         }
@@ -266,8 +267,8 @@ namespace json_reader
         }
         return json::Builder{}.StartDict()
                 .Key("buses"s).Value(arr)
-                .Key("request_id"s).Value(value.AsMap().at("id"s).AsInt())
-                .EndDict().Build().AsMap();
+                .Key("request_id"s).Value(value.AsDict().at("id"s).AsInt())
+                .EndDict().Build().AsDict();
     }
     
     /*
@@ -311,17 +312,17 @@ namespace json_reader
       } 
     */
     json::Node JsonReader::RequestBus(const json::Node& value) {
-        auto route_info = handler_.GetRouteInfo(value.AsMap().at("name"s).AsString());
+        auto route_info = handler_.GetRouteInfo(value.AsDict().at("name"s).AsString());
         if (route_info == nullptr) {
             return CreateEmptyAnswer(value);
         }
         return json::Builder{}.StartDict()
                 .Key("curvature"s).Value((*route_info)->curvature)
-                .Key("request_id"s).Value(value.AsMap().at("id"s).AsInt())
+                .Key("request_id"s).Value(value.AsDict().at("id"s).AsInt())
                 .Key("route_length"s).Value((*route_info)->route_length)
                 .Key("stop_count"s).Value((*route_info)->number_of_stops)
                 .Key("unique_stop_count"s).Value((*route_info)->number_of_unique_stops)
-                .EndDict().Build().AsMap();
+                .EndDict().Build().AsDict();
     }
 
     /*Ответ на этот запрос отдаётся в виде словаря с ключами request_id и map:
@@ -342,7 +343,7 @@ namespace json_reader
         doc.Render(ostr);
         return json::Builder{}.StartDict()
                 .Key("map"s).Value(ostr.str())
-                .Key("request_id"s).Value(value.AsMap().at("id"s).AsInt())
+                .Key("request_id"s).Value(value.AsDict().at("id"s).AsInt())
                 .EndDict().Build();
     }
 
@@ -452,11 +453,11 @@ namespace json_reader
         return svg::Color();
     }
 
-    //--------------------------------------------------
+    //------------------------------------------------------------------------------------------
 
     json::Node JsonReader::CreateEmptyAnswer(const json::Node& value) {
         return json::Builder{}.StartDict()
-                .Key("request_id"s).Value(value.AsMap().at("id"s).AsInt())
+                .Key("request_id"s).Value(value.AsDict().at("id"s).AsInt())
                 .Key("error_message"s).Value("not found"s)
                 .EndDict().Build();
     }

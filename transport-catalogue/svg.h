@@ -175,6 +175,8 @@ namespace svg {
         int indent = 0;
     };
 
+    // Object -------------------------------------------------------------------------
+
     /*
      * Абстрактный базовый класс Object служит для унифицированного хранения
      * конкретных тегов SVG-документа
@@ -334,6 +336,8 @@ namespace svg {
         std::optional<StrokeLineJoin> line_join_;
     };
 
+    // Circle ------------------------------------------------------------------------
+
     /*
      * Класс Circle моделирует элемент <circle> для отображения круга
      * https://developer.mozilla.org/en-US/docs/Web/SVG/Element/circle
@@ -350,6 +354,8 @@ namespace svg {
         double radius_ = 1.0;
     };
 
+    // Polyline -----------------------------------------------------------------------
+
     /*
      * Класс Polyline моделирует элемент <polyline> для отображения ломаных линий
      * https://developer.mozilla.org/en-US/docs/Web/SVG/Element/polyline
@@ -364,6 +370,8 @@ namespace svg {
 
         void RenderObject(const RenderContext& context) const override;
     };
+
+    // Text ----------------------------------------------------------------------------
 
     /*
      * Класс Text моделирует элемент <text> для отображения текста
@@ -401,6 +409,8 @@ namespace svg {
         void RenderObject(const RenderContext& context) const override;
     };
 
+    // ObjectContainer -----------------------------------------------------------------------------
+
     class ObjectContainer {
     public:
         template <typename Obj>
@@ -423,6 +433,7 @@ namespace svg {
         virtual ~Drawable() = default;
     };
 
+    // Document ------------------------------------------------------------------------------------
 
     class Document : public ObjectContainer {
     public:

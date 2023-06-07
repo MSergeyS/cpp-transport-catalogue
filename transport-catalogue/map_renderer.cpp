@@ -4,7 +4,7 @@ namespace renderer
 {
     using namespace std::literals;
 
-    //----------------SphereProjector----------------------------
+    // SphereProjector ---------------------------------------------------------------------------------
 
     bool IsZero(const double& value)
     {
@@ -17,7 +17,7 @@ namespace renderer
                  (max_lat_ - coords.lat) * zoom_coeff_ + padding_ };
     }
 
-    //---------------MapRenderer-------------------------
+    // MapRenderer -------------------------------------------------------------------------------------
 
     MapRenderer::MapRenderer() {
     }

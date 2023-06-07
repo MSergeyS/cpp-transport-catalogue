@@ -10,7 +10,7 @@
 
 namespace renderer
 {
-    //----------------RenderSettings----------------------------
+    // RenderSettings -------------------------------------------------------------------------
 
     struct RenderSettings
     {
@@ -32,7 +32,7 @@ namespace renderer
 
     bool IsZero(const double& value);
 
-    //----------------SphereProjector----------------------------
+    // SphereProjector ------------------------------------------------------------------------
 
     //класс, который проецирует точки на карту
     class SphereProjector
@@ -108,7 +108,7 @@ namespace renderer
     }
 
  
-    //---------------MapRenderer-------------------------
+    // MapRenderer ----------------------------------------------------------------------------
 
     class MapRenderer
     {

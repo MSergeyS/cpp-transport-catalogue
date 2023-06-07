@@ -17,6 +17,8 @@ namespace json_reader
 {
 class JsonReader {
 public:
+    // JsonReader : public  -----------------------------------------------------
+
     JsonReader(request_handler::RequestHandler& handler, std::istream& input, std::ostream& output);
 
 	void ReadRequests();
@@ -26,26 +28,26 @@ private:
 	std::istream& input_;
 	std::ostream& output_;
 
-    //------------------input-------------------------
+    // input --------------------------------------------------------------------
 
     void MakeBase(const json::Array& arr);
     void ReadStopData(const json::Dict& dict);
     void ReadStopDistance(const json::Dict& dict);
     void ReadBusData(const json::Dict& dict);
 
-    //------------------output-------------------------
+    // output -------------------------------------------------------------------
 
     void StatRequests(const json::Node& node);
     json::Node RequestStop(const json::Node& value);
     json::Node RequestBus(const json::Node& value);
     json::Node RequestMap(const json::Node& value);
 
-    //------------------render-------------------------
+    // render -------------------------------------------------------------------
 
     const svg::Color GetColor(const json::Node& color);
     void SetMapRenderer(const json::Dict& dict);
 
-    //-------------------------------------------------
+    //---------------------------------------------------------------------------
 
 	json::Node CreateEmptyAnswer(const json::Node& value);
 
