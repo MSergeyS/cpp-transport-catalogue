@@ -13,9 +13,9 @@ namespace json_reader
     // JsonReader : public  -----------------------------------------------------
 
     JsonReader::JsonReader(request_handler::RequestHandler& handler,
-            std::istream& input, std::ostream& output)
-            : handler_(handler), input_(input), output_(output) {
-            }
+        std::istream& input, std::ostream& output)
+        : handler_(handler), input_(input), output_(output) {
+    }
 
     /* Данные поступают из stdin в формате JSON-объекта. Его верхнеуровневая структура:
     {
@@ -46,28 +46,35 @@ namespace json_reader
     void JsonReader::ReadRequests() {
     try {
         const json::Dict dict = json::Load(input_).GetRoot().AsDict();
-        const auto base_requests = dict.find("base_requests");
+        const auto base_requests = dict.find("base_requests"s);
         if (base_requests != dict.end()) {
             MakeBase(base_requests->second.AsArray());
         }
-        const auto render_settings = dict.find("render_settings");
+        const auto render_settings = dict.find("render_settings"s);
         if (render_settings != dict.end())
         {
             SetMapRenderer(render_settings->second.AsDict());
         }
-        const auto stat_requests = dict.find("stat_requests");
+
+        const auto routing_settings = dict.find("routing_settings"s);
+        if (routing_settings != dict.end())
+        {
+            SetRoutingSettings(routing_settings->second.AsDict());
+        }
+
+        const auto stat_requests = dict.find("stat_requests"s);
         if (stat_requests != dict.end()) {
             StatRequests(stat_requests->second.AsArray());
         }
     }
     catch (const std::logic_error& err) {
-        std::cerr << "Invalid data format: " << err.what() << std::endl;
+        std::cerr << "Invalid data format: "s << err.what() << std::endl;
     }
     catch (const json::ParsingError& err) {
-        std::cerr << "ParsingError: " << err.what() << std::endl;
+        std::cerr << "ParsingError: "s << err.what() << std::endl;
     }
     catch (...) {
-        std::cerr << "Unknown error" << std::endl;
+        std::cerr << "Unknown error"s << std::endl;
     }
     }
 
@@ -220,6 +227,12 @@ namespace json_reader
                 arr_answer.push_back(std::move(dict_node_map));
                 continue;
             }
+
+            else if (request.AsDict().at("type").AsString() == "Route") {
+                json::Node dict_node_route = RequestRoute(request);
+                arr_answer.push_back(std::move(dict_node_route));
+                continue;
+            }
         }
         json::Print(json::Document{ arr_answer }, output_);
     }
@@ -325,7 +338,8 @@ namespace json_reader
                 .EndDict().Build().AsDict();
     }
 
-    /*Ответ на этот запрос отдаётся в виде словаря с ключами request_id и map:
+    /*
+    Ответ на этот запрос отдаётся в виде словаря с ключами request_id и map:
       {
         "map": "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\">\n  <polyline points=\"100.817,170 30,30 100.817,170\" fill=\"none\" stroke=\"green\" stroke-width=\"14\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n  <text fill=\"rgba(255,255,255,0.85)\" stroke=\"rgba(255,255,255,0.85)\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\" x=\"100.817\" y=\"170\" dx=\"7\" dy=\"15\" font-size=\"20\" font-family=\"Verdana\" font-weight=\"bold\">114</text>\n  <text fill=\"green\" x=\"100.817\" y=\"170\" dx=\"7\" dy=\"15\" font-size=\"20\" font-family=\"Verdana\" font-weight=\"bold\">114</text>\n  <text fill=\"rgba(255,255,255,0.85)\" stroke=\"rgba(255,255,255,0.85)\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\" x=\"30\" y=\"30\" dx=\"7\" dy=\"15\" font-size=\"20\" font-family=\"Verdana\" font-weight=\"bold\">114</text>\n  <text fill=\"green\" x=\"30\" y=\"30\" dx=\"7\" dy=\"15\" font-size=\"20\" font-family=\"Verdana\" font-weight=\"bold\">114</text>\n  <circle cx=\"100.817\" cy=\"170\" r=\"5\" fill=\"white\"/>\n  <circle cx=\"30\" cy=\"30\" r=\"5\" fill=\"white\"/>\n  <text fill=\"rgba(255,255,255,0.85)\" stroke=\"rgba(255,255,255,0.85)\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\" x=\"100.817\" y=\"170\" dx=\"7\" dy=\"-3\" font-size=\"20\" font-family=\"Verdana\">Морской вокзал</text>\n  <text fill=\"black\" x=\"100.817\" y=\"170\" dx=\"7\" dy=\"-3\" font-size=\"20\" font-family=\"Verdana\">Морской вокзал</text>\n  <text fill=\"rgba(255,255,255,0.85)\" stroke=\"rgba(255,255,255,0.85)\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\" x=\"30\" y=\"30\" dx=\"7\" dy=\"-3\" font-size=\"20\" font-family=\"Verdana\">Ривьерский мост</text>\n  <text fill=\"black\" x=\"30\" y=\"30\" dx=\"7\" dy=\"-3\" font-size=\"20\" font-family=\"Verdana\">Ривьерский мост</text>\n</svg>",
         "request_id": 11111
@@ -345,6 +359,159 @@ namespace json_reader
                 .Key("map"s).Value(ostr.str())
                 .Key("request_id"s).Value(value.AsDict().at("id"s).AsInt())
                 .EndDict().Build();
+    }
+
+    /*
+    Новый тип запросов к базе — Route
+    В список stat_requests добавляются элементы с "type": "Route" — это запросы на построение маршрута
+    между двумя остановками.
+    Помимо стандартных свойств id и type, они содержат ещё два:
+      - from — остановка, где нужно начать маршрут.
+      - to — остановка, где нужно закончить маршрут.
+    Оба значения — названия существующих в базе остановок.
+    Однако они, возможно, не принадлежат ни одному автобусному маршруту.
+    Пример
+    {
+      "type": "Route",
+      "from": "Biryulyovo Zapadnoye",
+      "to": "Universam",
+      "id": 4
+    }
+    Данный запрос означает построение маршрута от остановки “Biryulyovo Zapadnoye” до остановки “Universam”.
+    */
+
+
+    /*
+    Новая секция — routing_settings
+    Во входной JSON добавляется ключ routing_settings, значение которого — словарь с двумя ключами:
+        bus_wait_time — время ожидания автобуса на остановке, в минутах.
+            Считайте, что когда бы человек ни пришёл на остановку и какой бы ни была эта остановка,
+            он будет ждать любой автобус в точности указанное количество минут.
+            Значение — целое число от 1 до 1000.
+        bus_velocity — скорость автобуса, в км/ч. Считайте, что скорость любого автобуса постоянна и
+            в точности равна указанному числу. Время стоянки на остановках не учитывается,
+            время разгона и торможения тоже. Значение — вещественное число от 1 до 1000.
+    Пример
+    "routing_settings": {
+        "bus_wait_time": 6,
+        "bus_velocity": 40
+    }
+    Данная конфигурация задаёт время ожидания, равным 6 минутам, и скорость автобусов, равной 40 километрам в час.
+
+    На маршруте человек может использовать несколько автобусов.
+    Один автобус даже можно использовать несколько раз, если на некоторых участках он делает большой крюк и проще
+    срезать на другом автобусе.
+    Маршрут должен быть наиболее оптимален по времени. Если маршрутов с минимально возможным суммарным временем
+    несколько, допускается вывести любой из них: тестирующая система проверяет лишь совпадение времени маршрута
+    с оптимальным и корректность самого маршрута.
+    При прохождении маршрута время расходуется на два типа активностей:
+      - Ожидание автобуса. Всегда длится bus_wait_time минут.
+      - Поездка на автобусе. Всегда длится ровно такое количество времени, которое требуется для преодоления
+        данного расстояния со скоростью bus_velocity. Расстояние между остановками вычисляется по дорогам,
+        то есть с использованием road_distances.
+
+    Ходить пешком, выпрыгивать из автобуса между остановками и использовать другие виды транспорта запрещается.
+    На конечных остановках все автобусы высаживают пассажиров и уезжают в парк.
+    Даже если человек едет на кольцевом — "is_roundtrip": true — маршруте и хочет проехать мимо конечной,
+    он будет вынужден выйти и подождать тот же самый автобус ровно bus_wait_time минут.
+    Этот и другие случаи разобраны в примерах.
+    Ответ на запрос Route устроен следующим образом:
+    {
+        "request_id": <id запроса>,
+        "total_time": <суммарное время>,
+        "items": [
+            <элементы маршрута>
+         ]
+    }
+    total_time — суммарное время в минутах, которое требуется для прохождения маршрута, выведенное в виде вещественного числа.
+    Обратите внимание, что расстояние от остановки A до остановки B может быть не равно расстоянию от B до A!
+    items — список элементов маршрута, каждый из которых описывает непрерывную активность пассажира, требующую временных затрат.
+    А именно элементы маршрута бывают двух типов.
+
+    Wait — подождать нужное количество минут (в нашем случае всегда bus_wait_time) на указанной остановке:
+    {
+        "type": "Wait",
+        "stop_name": "Biryulyovo",
+        "time": 6
+    }
+    Bus — проехать span_count остановок (перегонов между остановками) на автобусе bus, потратив указанное количество минут:
+    {
+         "type": "Bus",
+         "bus": "297",
+         "span_count": 2,
+         "time": 5.235
+    }
+    Если маршрута между указанными остановками нет, выведите результат в следующем формате:
+    {
+         "request_id": <id запроса>,
+         "error_message": "not found"
+    }
+    */
+    json::Node CreateNodeBus(const RouteData& data) {
+        json::Node node_route{ json::Builder{}.StartDict()
+                         .Key("bus"s).Value(std::string(data.bus_name))
+                         .Key("span_count"s).Value(data.span_count)
+                         .Key("time"s).Value(data.motion_time)
+                         .Key("type"s).Value("Bus"s)
+                         .EndDict().Build() };
+        return node_route;
+    }
+
+    json::Node CreateNodeStop(const RouteData& data) {
+        json::Node node_stop{ json::Builder{}.StartDict()
+                                            .Key("stop_name"s).Value(std::string(data.stop_name))
+                                            .Key("time"s).Value(data.bus_wait_time)
+                                            .Key("type"s).Value("Wait"s)
+                                        .EndDict().Build() };
+        return node_stop;
+    }
+
+    json::Node CreateNodeRoute(const std::vector<RouteData>& route_data) {
+        json::Node data_route{ json::Builder{}.StartArray().EndArray().Build() };
+        for (const RouteData& data : route_data) {
+            if (data.type == "bus"sv) {
+                const_cast<json::Array&>(data_route.AsArray()).push_back(std::move(CreateNodeBus(data)));
+            }
+            else if (data.type == "stop"sv) {
+                const_cast<json::Array&>(data_route.AsArray()).push_back(std::move(CreateNodeStop(data)));
+            }
+            else if (data.type == "stay_here"sv) {
+                return data_route;
+            }
+        }
+        return data_route;
+    }
+
+    double CalcTotalTime(const std::vector<RouteData>& route_data) {
+            double total_time = 0.0;
+            for (const RouteData& data : route_data) {
+                if (data.type == "bus"sv) {
+                    total_time += data.motion_time;
+                }
+                else if (data.type == "stop"sv) {
+                    total_time += data.bus_wait_time;
+                }
+            }
+            return total_time;
+        }
+
+    json::Node JsonReader::RequestRoute(const json::Node& value) {
+    std::optional < std::vector < RouteData >> route_data =
+            handler_.CreateRoute(value.AsDict().at("from"s).AsString(),
+                    value.AsDict().at("to"s).AsString());
+        if (route_data == std::nullopt) {
+            return json::Builder{}.StartDict()
+                    .Key("error_message"s).Value("not found"s)
+                    .Key("request_id"s).Value(value.AsDict().at("id"s).AsInt())
+                    .EndDict().Build();
+        }
+
+        return json::Builder{}.StartDict()
+                .Key("items"s).Value(CreateNodeRoute(route_data.value()).AsArray())
+                .Key("request_id"s).Value(value.AsDict().at("id"s).AsInt())
+                .Key("total_time"s).Value(CalcTotalTime(route_data.value()))
+                .EndDict().Build();
+
     }
 
     //------------------render-------------------------
@@ -400,20 +567,20 @@ namespace json_reader
     */
     void JsonReader::SetMapRenderer(const json::Dict& dict) {
         renderer::RenderSettings settings;
-        settings.width = dict.at("width").AsDouble();
-        settings.height = dict.at("height").AsDouble();
-        settings.padding = dict.at("padding").AsDouble();
-        settings.line_width = dict.at("line_width").AsDouble();
-        settings.stop_radius = dict.at("stop_radius").AsDouble();
-        settings.bus_label_font_size = dict.at("bus_label_font_size").AsInt();
-        settings.bus_label_offset = { dict.at("bus_label_offset").AsArray()[0].AsDouble(),
+        settings.width = dict.at("width"s).AsDouble();
+        settings.height = dict.at("height"s).AsDouble();
+        settings.padding = dict.at("padding"s).AsDouble();
+        settings.line_width = dict.at("line_width"s).AsDouble();
+        settings.stop_radius = dict.at("stop_radius"s).AsDouble();
+        settings.bus_label_font_size = dict.at("bus_label_font_size"s).AsInt();
+        settings.bus_label_offset = { dict.at("bus_label_offset"s).AsArray()[0].AsDouble(),
                  dict.at("bus_label_offset").AsArray()[1].AsDouble() };
-        settings.stop_label_font_size = dict.at("stop_label_font_size").AsInt();
-        settings.stop_label_offset = { dict.at("stop_label_offset").AsArray()[0].AsDouble(),
+        settings.stop_label_font_size = dict.at("stop_label_font_size"s).AsInt();
+        settings.stop_label_offset = { dict.at("stop_label_offset"s).AsArray()[0].AsDouble(),
                 dict.at("stop_label_offset").AsArray()[1].AsDouble() };
-        settings.underlayer_color = GetColor(dict.at("underlayer_color"));
-        settings.underlayer_width = dict.at("underlayer_width").AsDouble();
-        for (const auto& color : dict.at("color_palette").AsArray()) {
+        settings.underlayer_color = GetColor(dict.at("underlayer_color"s));
+        settings.underlayer_width = dict.at("underlayer_width"s).AsDouble();
+        for (const auto& color : dict.at("color_palette"s).AsArray()) {
             settings.color_palette.emplace_back(GetColor(color));
         }
         handler_.SetRenderSettings(settings);
@@ -451,6 +618,13 @@ namespace json_reader
             }
         }
         return svg::Color();
+    }
+
+    // transport router ------------------------------------------------------------------------
+
+    void JsonReader::SetRoutingSettings(const json::Dict& dict) {
+        handler_.SetRoutingSettings({dict.at("bus_wait_time"s).AsInt(),
+                                     dict.at("bus_velocity"s).AsDouble()});
     }
 
     //------------------------------------------------------------------------------------------

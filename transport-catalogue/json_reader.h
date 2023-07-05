@@ -10,6 +10,8 @@
 #include "json.h"
 #include "request_handler.h"
 #include "svg.h"
+#include "transport_router.h"
+
 #include <stdexcept>
 #include <string>
 
@@ -41,11 +43,16 @@ private:
     json::Node RequestStop(const json::Node& value);
     json::Node RequestBus(const json::Node& value);
     json::Node RequestMap(const json::Node& value);
+    json::Node RequestRoute(const json::Node& value);
 
     // render -------------------------------------------------------------------
 
     const svg::Color GetColor(const json::Node& color);
     void SetMapRenderer(const json::Dict& dict);
+
+    // transport router ---------------------------------------------------------
+
+    void SetRoutingSettings(const json::Dict& dict);
 
     //---------------------------------------------------------------------------
 

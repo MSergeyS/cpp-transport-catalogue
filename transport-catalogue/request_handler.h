@@ -13,8 +13,10 @@
 
 #include <optional>
 
+#include "domain.h"
 #include "map_renderer.h"
 #include "transport_catalogue.h"
+#include "transport_router.h"
 
  // Класс RequestHandler играет роль Фасада, упрощающего взаимодействие JSON reader-а
  // с другими подсистемами приложения.
@@ -24,7 +26,7 @@ namespace request_handler {
     class RequestHandler {
     public:
         RequestHandler(transport_catalogue::TransportCatalogue& db,
-            renderer::MapRenderer& renderer);
+            renderer::MapRenderer& renderer, transport_router::TransportRouter& router);
 
         // Возвращает информацию о маршруте (запрос Bus)
         std::optional<const RouteInfo*> GetRouteInfo(const std::string_view& bus_name) const;
@@ -48,9 +50,16 @@ namespace request_handler {
 
         void SetRenderSettings(const renderer::RenderSettings& render_settings);
 
+        // установка параметров построения маршрута
+        void SetRoutingSettings(const RoutingSettings settings);
+
+        // построение маршрута
+        std::optional<std::vector<RouteData>> CreateRoute(const std::string_view& from, const std::string_view& to) const;
+
     private:
         // RequestHandler использует агрегацию объектов "Транспортный Справочник" и "Визуализатор Карты"
         transport_catalogue::TransportCatalogue& db_;
         renderer::MapRenderer& renderer_;
+        transport_router::TransportRouter& router_;
     };
 } // namespace request_handler

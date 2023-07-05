@@ -10,7 +10,8 @@
 
 namespace request_handler {
 	RequestHandler::RequestHandler(transport_catalogue::TransportCatalogue& catalogue,
-		renderer::MapRenderer& renderer) : db_(catalogue), renderer_(renderer) {
+		renderer::MapRenderer& renderer, transport_router::TransportRouter& router) :
+		db_(catalogue), renderer_(renderer), router_(router) {
 	}
 
 	// Возвращает информацию о маршруте (запрос Bus)
@@ -47,6 +48,18 @@ namespace request_handler {
 
     void RequestHandler::SetRenderSettings(const renderer::RenderSettings& render_settings) {
         renderer_.SetRenderSettings(render_settings);
+    }
+
+    // задание установок построения маршрута
+    void RequestHandler::SetRoutingSettings(const RoutingSettings settings) {
+        router_.SetRoutingSettings(settings.bus_wait_time, settings.bus_velocity);
+        router_.InitializeGraph();
+    }
+
+    // остроение маршрута между двумя остановками
+    std::optional<std::vector<RouteData>> RequestHandler::CreateRoute(const std::string_view& from,
+            const std::string_view& to) const {
+        return router_.CreatRoute(from, to);
     }
 
 } // namespace request_handler

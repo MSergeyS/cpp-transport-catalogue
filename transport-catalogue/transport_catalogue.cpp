@@ -13,8 +13,9 @@ namespace transport_catalogue {
 void TransportCatalogue::AddStop(const std::string &stop_name,
         const geo::Coordinates coordinate) {
     Stop stop;
-    stop.name = stop_name;
-    stop.coordinate = coordinate;
+    stop.name = move(stop_name);
+    stop.coordinate = move(coordinate);
+    stop.id = stops_.size();
     stops_.push_back(move(stop));
     stops_by_names_.insert({stops_.back().name, &stops_.back()});
 }

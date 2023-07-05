@@ -25,7 +25,9 @@ int main() {
     {
         TransportCatalogue tc;
         renderer::MapRenderer map_render;
-        request_handler::RequestHandler handler(tc, map_render);
+        //transport_router::TransportRouter router(tc, route_setting);
+        transport_router::TransportRouter transport_router(tc);
+        request_handler::RequestHandler handler(tc, map_render, transport_router);
         json_reader::JsonReader join_reader(handler, std::cin, std::cout);
         join_reader.ReadRequests();
     }

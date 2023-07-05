@@ -22,6 +22,7 @@ enum class RouteType {
 struct Stop {
 	std::string name;  // название остановки
 	geo::Coordinates coordinate; // координаты
+	size_t id = 0;
 
 	friend bool operator==(const Stop& lhs, const Stop& rhs);
 };
@@ -44,4 +45,19 @@ struct RouteInfo {
 	int number_of_unique_stops = 0; //количество остановок (уникальные)
 	uint64_t route_length = 0; // длина маршрута
 	double curvature = 0.0; // извилистость
+};
+
+// настройки маршрутов
+struct RoutingSettings {
+        int bus_wait_time = 0;  // время ожидания автобуса на остановке, в минутах
+        double bus_velocity = 0.0;  // скорость автобуса, в км/ч
+    };
+
+struct RouteData {
+    std::string_view type = { };
+    std::string_view bus_name = { };
+    std::string_view stop_name = { };
+    double motion_time = 0.0;
+    int bus_wait_time = 0;
+    int span_count = 0;
 };
