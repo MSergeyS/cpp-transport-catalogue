@@ -82,7 +82,7 @@ namespace transport_router
                 continue;
             }
 
-            double time = (edges_info_[edge_index].time_weight - settings_.bus_wait_time * 60) / 60;
+            double time = (edges_info_[edge_index].time_weight - settings_.bus_wait_time * MIN_TO_SECONDS) / MIN_TO_SECONDS;
             total_time += time;
 
             route_data.push_back(std::move(CreateBusAnswer(edge_index, time)));

@@ -7,6 +7,9 @@
 
 #include <iostream>
 
+#define MIN_TO_SECONDS 60
+#define KM_PER_H_TO_M_PER_S 3.6
+
 namespace transport_router
 {
     using namespace std::literals;
@@ -56,8 +59,8 @@ namespace transport_router
 
     template <typename Begin, typename End>
     void TransportRouter::CreateEdgesAlongRoute(Graph& graph, const Begin begin, const End end, std::string_view bus_name) {
-        const double wait = settings_.bus_wait_time * 60.0; // переводим время в секунды
-        const double bus_speed = settings_.bus_velocity / 3.6; // переводим скорость в м/с
+        const double wait = settings_.bus_wait_time * MIN_TO_SECONDS; // переводим время в секунды
+        const double bus_speed = settings_.bus_velocity / KM_PER_H_TO_M_PER_S; // переводим скорость в м/с
 
         for (auto it_stop = begin; it_stop < end; ++it_stop) {
             int span_count = 1;
