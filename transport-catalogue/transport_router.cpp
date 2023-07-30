@@ -38,6 +38,10 @@ namespace transport_router
         settings_.bus_velocity = bus_velocity;
     }
 
+    const RoutingSettings& TransportRouter::GetRoutingSettings() const {
+        return settings_;
+    }
+
     void TransportRouter::InitializeGraph() {
         BuildGraph();
         router_ = std::make_unique<graph::Router<double>>(graph_);
@@ -70,6 +74,15 @@ namespace transport_router
         graph_ = std::move(graph);
     }
 
+    void TransportRouter::SetGraph(const Graph& graph) {
+        graph_ = graph;
+        router_ = std::make_unique<graph::Router<double>>(graph_);
+    }
+
+    std::shared_ptr<Graph> TransportRouter::GetGraph() const {
+        return std::make_shared<Graph>(graph_);
+    }
+
     std::vector<RouteData> TransportRouter::CreateAnswer(const std::optional<graph::Router<double>::RouteInfo>& route_info) const {
         double total_time = 0.0;
         std::vector<RouteData> route_data;
@@ -82,7 +95,7 @@ namespace transport_router
                 continue;
             }
 
-            double time = (edges_info_[edge_index].time_weight - settings_.bus_wait_time * MIN_TO_SECONDS) / MIN_TO_SECONDS;
+            double time = (graph_.GetEdge(edge_index).weight - settings_.bus_wait_time * MIN_TO_SECONDS) / MIN_TO_SECONDS;
             total_time += time;
 
             route_data.push_back(std::move(CreateBusAnswer(edge_index, time)));
@@ -93,8 +106,8 @@ namespace transport_router
     RouteData TransportRouter::CreateBusAnswer(size_t edge_index, double time) const {
         RouteData bus_answer;
         bus_answer.type = "bus"sv;
-        bus_answer.bus_name = edges_info_[edge_index].bus_name;
-        bus_answer.span_count = edges_info_[edge_index].span_count;
+        bus_answer.bus_name = transport_catalogue_.GetRouteNameById(graph_.GetEdge(edge_index).bus_name_id);
+        bus_answer.span_count = graph_.GetEdge(edge_index).span_count;
         bus_answer.motion_time = time;
         return bus_answer;
     }

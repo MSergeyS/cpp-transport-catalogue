@@ -11,21 +11,22 @@ namespace transport_catalogue {
 
 // добавление остановки в базу
 void TransportCatalogue::AddStop(const std::string &stop_name,
-        const geo::Coordinates coordinate) {
+        const geo::Coordinates coordinate, uint32_t stop_id) {
     Stop stop;
-    stop.name = move(stop_name);
-    stop.coordinate = move(coordinate);
-    stop.id = stops_.size();
+    stop.name = stop_name;
+    stop.coordinate = coordinate;
+    stop.id = stop_id;
     stops_.push_back(move(stop));
     stops_by_names_.insert({stops_.back().name, &stops_.back()});
 }
 
 // добавление маршрута в базу
 void TransportCatalogue::AddRoute(string_view name, RouteType type,
-        std::vector<std::string_view> stops) {
+        std::vector<std::string_view> stops, uint16_t route_id) {
     Route route;
     route.name = name;
     route.route_type = type;
+    route.id = route_id;
 
     for (auto& stop : stops) {
         auto found_stop = GetStopByName(stop);
@@ -61,6 +62,18 @@ const Route* TransportCatalogue::GetRouteByName(
     }
     return routes_by_names_.at(route_name);
 }
+
+std::string_view TransportCatalogue::GetStopNameById(uint32_t id) const {
+    const auto& it = std::find_if(stops_.begin(), stops_.end(),
+        [id](const Stop r) { return ( r.id == id ); });
+    return (*it).name;
+}
+
+std::string_view TransportCatalogue::GetRouteNameById(uint32_t id) const {
+    const auto& it = std::find_if(routes_.begin(), routes_.end(),
+        [id](const Route r) { return ( r.id == id ); });
+    return (*it).name;
+};
 
 const std::unordered_map<string_view, const Route*>
 &TransportCatalogue::GetAllRoutes() const {
@@ -125,7 +138,7 @@ const RouteInfo* TransportCatalogue::GetRouteInfo(
     result.number_of_unique_stops = CalculateUniqueStops(route);
     result.route_length = this->CalculateRealRouteLength(route);
     // извилистость, то есть отношение фактической длины маршрута к географическому расстоянию
-    result.curvature = result.route_length / CalculateRouteLength(route);
+    result.curvature = static_cast<double>(result.route_length) / CalculateRouteLength(route);
     return new RouteInfo(result);
 }
 
@@ -179,5 +192,30 @@ uint64_t  TransportCatalogue::CalculateRealRouteLength(const Route* route) const
     }
     return length;
 }
+
+//std::unordered_map<std::pair<const Stop*, const Stop*>, uint64_t, StopHasher<Stop>>& TransportCatalogue::GetAllDistanceBeetweenPairStops() {
+//    return distances_;
+//};
+
+std::vector<DistanceBeetweenPairStops> TransportCatalogue::GetAllDistanceBeetweenPairStops() {
+    std::vector<DistanceBeetweenPairStops> result;
+    for (auto& [pair_stops, distance] : distances_) {
+        DistanceBeetweenPairStops pair_stops_distance;
+        auto a = pair_stops.first;
+        pair_stops_distance.id_stop_from = pair_stops.first->id;
+        pair_stops_distance.id_stop_to = pair_stops.second->id;
+        pair_stops_distance.distance = distance;
+        result.push_back(pair_stops_distance);
+    }
+    return result;
+};
+
+uint32_t TransportCatalogue::GetNumberStops() const {
+     return static_cast<uint32_t>(stops_.size());
+};
+
+uint32_t TransportCatalogue::GetNumberRoutes() const {
+     return static_cast<uint32_t>(routes_.size());
+};
 
 }//namespace transport_catalogue

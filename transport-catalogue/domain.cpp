@@ -13,12 +13,12 @@
  *
  */
 
-bool operator==(const Stop& lhs, const Stop& rhs) {
+bool operator==(const Stop &lhs, const Stop &rhs)
+{
     return (lhs.name == rhs.name) && (lhs.coordinate == rhs.coordinate);
 }
 
-bool operator==(const Route& lhs, const Route& rhs) {
-    return (lhs.name == rhs.name) 
-           && (lhs.route_type == rhs.route_type)
-           && (lhs.stops == rhs.stops);
+bool operator==(const Route &lhs, const Route &rhs)
+{
+    return (lhs.name == rhs.name) && (lhs.route_type == rhs.route_type) && (lhs.stops == rhs.stops);
 }

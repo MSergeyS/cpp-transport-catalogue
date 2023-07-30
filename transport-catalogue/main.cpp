@@ -1,35 +1,55 @@
-//#include "input_reader.h"
+#include <fstream>
+#include <iostream>
+#include <string_view>
+
 #include "json_reader.h"
-#include "map_renderer.h"
-#include "transport_catalogue.h"
 #include "request_handler.h"
+#include "serialization.h"
 
-using namespace std;
+using namespace std::literals;
 using namespace transport_catalogue;
-//using namespace query;
 
+void PrintUsage(std::ostream& stream = std::cerr) {
+	stream << "Usage: transport_catalogue [make_base|process_requests]\n"sv;
+}
 
-int main() {
+int main(int argc, char* argv[]) {
+	if (argc != 2) {
+		PrintUsage();
+		return 1;
+	}
 
-    // using namespace std::literals;
+	const std::string_view mode(argv[1]);
 
-    //{
-    //    TransportCatalogue tc;
-    //    InputReader ir;
-    //    ir.ParseInput();
-    //    ir.ParseInput();
-    //    ir.Load(tc);
-    //    //tests();
-    //}
+	TransportCatalogue tc;
+	renderer::MapRenderer map_render;
+	transport_router::TransportRouter transport_router(tc);
+	serialization::Serialization serialization(tc, map_render, transport_router);
 
-    {
-        TransportCatalogue tc;
-        renderer::MapRenderer map_render;
-        //transport_router::TransportRouter router(tc, route_setting);
-        transport_router::TransportRouter transport_router(tc);
-        request_handler::RequestHandler handler(tc, map_render, transport_router);
-        json_reader::JsonReader join_reader(handler, std::cin, std::cout);
-        join_reader.ReadRequests();
-    }
-    return 0;
+	request_handler::RequestHandler handler(tc, map_render, transport_router, serialization);
+	json_reader::JsonReader json_reader(handler, std::cin, std::cout);
+
+    json_reader.ReadRequests();
+
+	if (mode == "make_base"sv) {
+
+		// инициализируем router (строим graph)
+		handler.RouterInitializeGraph();
+		// сохраняем в файл
+		serialization.SaveTo();
+
+	}
+	else if (mode == "process_requests"sv) {
+        
+		// загружаем из файла
+		serialization.LoadFrom();
+		// обрабатываем stat_requests
+        json_reader.HandleStatRequests();
+		
+	}
+	else {
+		PrintUsage();
+		return 1;
+	}	
+	return 0;
 }

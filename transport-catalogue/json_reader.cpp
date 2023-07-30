@@ -3,7 +3,6 @@
 #include <map>
 #include <iostream>
 
-#include "json_builder.h"
 #include "json_reader.h"
 
 namespace json_reader
@@ -50,6 +49,7 @@ namespace json_reader
         if (base_requests != dict.end()) {
             MakeBase(base_requests->second.AsArray());
         }
+
         const auto render_settings = dict.find("render_settings"s);
         if (render_settings != dict.end())
         {
@@ -64,7 +64,13 @@ namespace json_reader
 
         const auto stat_requests = dict.find("stat_requests"s);
         if (stat_requests != dict.end()) {
-            StatRequests(stat_requests->second.AsArray());
+            stat_requests_ = stat_requests->second.AsArray();
+            //StatRequests(stat_requests->second.AsArray());
+        }
+
+        const auto serialization_settings = dict.find("serialization_settings"s);
+        if (serialization_settings != dict.end()) {
+            SetSerializationSettings(serialization_settings->second.AsDict());
         }
     }
     catch (const std::logic_error& err) {
@@ -627,6 +633,14 @@ namespace json_reader
                                      dict.at("bus_velocity"s).AsDouble()});
     }
 
+    // serialization ---------------------------------------------------------------------------
+
+    void JsonReader::SetSerializationSettings(const json::Dict& dict) {
+        serialization::SerializationSettings settings;
+        settings.file_name = dict.at("file"s).AsString();
+        handler_.SetSerializationSettings(settings);
+    }
+
     //------------------------------------------------------------------------------------------
 
     json::Node JsonReader::CreateEmptyAnswer(const json::Node& value) {
@@ -635,5 +649,9 @@ namespace json_reader
                 .Key("error_message"s).Value("not found"s)
                 .EndDict().Build();
     }
+
+    void JsonReader::HandleStatRequests() {
+        StatRequests(stat_requests_);
+    };
 
 } // namespace json_reader

@@ -5,15 +5,16 @@
   и формирует массив JSON-ответов;
 */
 
-#pragma once
-
-#include "json.h"
-#include "request_handler.h"
-#include "svg.h"
-#include "transport_router.h"
-
 #include <stdexcept>
 #include <string>
+
+#include "json.h"
+#include "svg.h"
+
+#include "json_builder.h"
+#include "request_handler.h"
+#include "transport_router.h"
+//#include "serialization.h"
 
 namespace json_reader
 {
@@ -23,13 +24,14 @@ public:
 
     JsonReader(request_handler::RequestHandler& handler, std::istream& input, std::ostream& output);
 
-	void ReadRequests();
+	  void ReadRequests();
+    void HandleStatRequests();
 
 private:
-	request_handler::RequestHandler& handler_;
-	std::istream& input_;
-	std::ostream& output_;
-
+	  request_handler::RequestHandler& handler_;
+	  std::istream& input_;
+	  std::ostream& output_;
+    json::Array stat_requests_;
     // input --------------------------------------------------------------------
 
     void MakeBase(const json::Array& arr);
@@ -53,6 +55,10 @@ private:
     // transport router ---------------------------------------------------------
 
     void SetRoutingSettings(const json::Dict& dict);
+
+    // serialization ------------------------------------------------------------
+
+    void SetSerializationSettings(const json::Dict& dict);
 
     //---------------------------------------------------------------------------
 

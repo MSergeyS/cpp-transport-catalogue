@@ -7,7 +7,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "geo.h"
 #include "domain.h"
 
 namespace transport_catalogue {
@@ -34,22 +33,31 @@ public:
     // методы ------------------------------------------------------------------
 
     // добавление остановки в базу
-    void AddStop(const std::string &stop_name, geo::Coordinates coordinate);
+    void AddStop(const std::string &stop_name, geo::Coordinates coordinate, uint32_t stop_id);
     // добавление маршрута в базу
-    void AddRoute(std::string_view number, RouteType type, std::vector<std::string_view> stops);
+    void AddRoute(std::string_view number, RouteType type, std::vector<std::string_view> stops,
+        uint16_t route_id);
 
     // поиск остановки по имени
     const Stop* GetStopByName(std::string_view stop_name) const;
+
     // поиск маршрута по имени
     const Route* GetRouteByName(std::string_view route_name) const;
 
+    // поиск имени остановки по ID
+    std::string_view GetStopNameById(uint32_t id) const;
+
+    // поиск имени маршрута по ID
+    std::string_view GetRouteNameById(uint32_t id) const;
+
     // поиск остановки по имени
     const std::unordered_map<std::string_view, const Stop*>& GetAllStops() const;
+
     // поиск маршрута по имени
     const std::unordered_map<std::string_view, const Route*>& GetAllRoutes() const;
 
     // получение информации о маршруте
-    const RouteInfo*  GetRouteInfo(const std::string_view& route_name) const;
+    const RouteInfo* GetRouteInfo(const std::string_view& route_name) const;
 
     // возвращает список автобусов, проходящих через остановку
     const std::set<std::string_view>* GetRoutesOnStop(const Stop* stop) const;
@@ -59,6 +67,13 @@ public:
 
     // получение дистанцию между остановками p_stop1 и p_stop2
     uint64_t GetStopDistance(const Stop* p_stop1, const Stop* p_stop2) const;
+
+    // получение всех расстояний между парами остановок
+    std::vector<DistanceBeetweenPairStops> GetAllDistanceBeetweenPairStops();
+
+    uint32_t GetNumberStops() const;
+
+    uint32_t GetNumberRoutes() const;
 
 private:
     // типы данных -------------------------------------------------------

@@ -1,8 +1,8 @@
-#include "stat_reader.h"
-
 #include <iomanip>
 #include <iostream>
 #include <set>
+
+#include "stat_reader.h"
 
 using namespace std;
 
