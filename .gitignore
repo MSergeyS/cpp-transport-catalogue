@@ -30,3 +30,14 @@
 *.exe
 *.out
 *.app
+
+# archives
+*.zip
+*.rar
+*.tar
+*.tar.gz
+*./tar.bz2
+
+# Patches
+./.vcode/
+./build/
