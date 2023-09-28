@@ -13,7 +13,7 @@
 
 ## Cборка и установка
  (Visual Studio)
-1. Установить Google Protobuf. Скачать с официального репозитория архив protobuf-cpp и распаковать его на компьютере.
+1. Установить Google Protobuf. Скачать с официального репозитория [архив protobuf-cpp](https://github.com/protocolbuffers/protobuf/releases) и распаковать его на компьютере.
 2. Создать папки build-debug и build-release для сборки двух конфигураций Protobuf. Предварительно создать папку package, в которую будет складываться пакет Protobuf.
 3. Собрать и установить проект (в примере сборка Debug) следующими командами:
 ```cmake path\protobuf-3.15.8\cmake -DCMAKE_SYSTEM_VERSION=10.0.17763.0 -DCMAKE_BUILD_TYPE=Debug \ -Dprotobuf_BUILD_TESTS=OFF 
